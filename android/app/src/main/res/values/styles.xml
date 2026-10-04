@@ -1,0 +1,11 @@
+<resources>
+
+    <!-- Tema base do aplicativo -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@color/custodia_background</item>
+        <item name="colorPrimary">@color/custodia_teal</item>
+        <item name="colorAccent">@color/custodia_teal</item>
+    </style>
+
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Configuração do Android Lint (gradlew :app:lintDebug / Android Studio › Code › Inspect Code). -->
+<lint>
+    <!-- commit() síncrono é intencional: o contador de tentativas, os envelopes da chave e a chave biométrica
+         precisam estar gravados no disco antes de a resposta voltar ao JavaScript (apply() grava depois). -->
+    <issue id="ApplySharedPref" severity="ignore" />
+    <issue id="UseKtx" severity="ignore" />
+    <!-- Versões fixadas pela compatibilidade com o React Native 0.87: não atualizar isoladamente. -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- Ícones adaptáveis ficam em mipmap-anydpi-v26: o aapt2 deste projeto não aceita <adaptive-icon> em mipmap-anydpi. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+    <!-- Recursos gerados pelo plugin do React Native para o modo de desenvolvimento (Metro). -->
+    <issue id="UnusedResources">
+        <ignore regexp="react_native_dev_server" />
+    </issue>
+</lint>

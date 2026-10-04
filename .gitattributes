@@ -1,0 +1,9 @@
+# Finais de linha corretos em cada sistema
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh text eol=lf
+android/gradlew text eol=lf
+*.png binary
+*.jar binary
+*.keystore binary
+*.mp4 binary

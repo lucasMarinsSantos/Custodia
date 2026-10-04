@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Escudo com fechadura (ícone adaptativo 108dp, área segura 66dp) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,28 L74,35 L74,52 C74,65 65.5,75.5 54,80 C42.5,75.5 34,65 34,52 L34,35 Z" />
+    <path
+        android:fillColor="#0F766E"
+        android:pathData="M54,46 C57.3,46 60,48.7 60,52 C60,54.2 58.8,56.1 57,57.2 L58.5,65 L49.5,65 L51,57.2 C49.2,56.1 48,54.2 48,52 C48,48.7 50.7,46 54,46 Z" />
+</vector>
