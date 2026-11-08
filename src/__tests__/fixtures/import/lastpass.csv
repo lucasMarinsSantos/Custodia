@@ -1,0 +1,6 @@
+url,username,password,totp,extra,name,grouping,fav
+https://www.facebook.com/,lucas.marins,F@cebook!2026,,,Facebook,Social,1
+https://twitter.com/,lucasm,Tw1tter#X2026,,"nota com, vírgula",X (Twitter),Social\Antigas,0
+http://sn,,,,"NoteType:Server
+Hostname:192.168.0.10
+Password:root#2026",Servidor de casa,Infra,0

@@ -27,7 +27,7 @@ set "OUT=%CD%\logs\diagnostico-windows.txt"
   echo == Dispositivos ==
   adb devices
   echo == App instalado ==
-  adb shell dumpsys package com.custodia.sprint1 2>nul | findstr /i "versionName lastUpdateTime"
+  adb shell dumpsys package com.custodia.sprint2 2>nul | findstr /i "versionName lastUpdateTime"
 ) > "%OUT%" 2>&1
 rem Erros recentes do app (falhas nativas e do JavaScript) para anexar a um relato de problema
 adb logcat -d -b crash > "%CD%\logs\logcat-falhas.txt" 2>&1

@@ -32,7 +32,21 @@ export const Events = {
   TOAST: 'toast',
   /** Interação do usuário que não passa pelo toque na tela (digitação no teclado do sistema). */
   ACTIVITY: 'activity',
+  /** Tentativa de desbloqueio (senha, biometria, recuperação, 2FA): { profileId, method, success, detail }. */
+  AUTH_ATTEMPT: 'authAttempt',
+  /** Novo alerta de segurança (AlertService). */
+  ALERT: 'alert',
+  /** Lista de perfis alterada (criado, renomeado, excluído ou trocado). */
+  PROFILES_CHANGED: 'profilesChanged',
 } as const;
+
+export interface AuthAttemptEvent {
+  profileId: string;
+  method: 'password' | 'biometric' | 'recovery' | 'totp';
+  success: boolean;
+  detail?: string;
+  at: string;
+}
 
 export function toast(message: string, kind: 'success' | 'error' | 'info' = 'info') {
   bus.emit(Events.TOAST, { message, kind });

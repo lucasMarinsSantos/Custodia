@@ -42,7 +42,7 @@ export default function AboutScreen({ navigation }: any) {
       <Card style={styles.headCard}>
         <Text style={Type.h1}>Custódia</Text>
         <Text style={Type.small}>
-          Gerenciador de senhas seguro • v0.1.0
+          Gerenciador de senhas seguro • v0.2.0
         </Text>
         <Text style={[Type.caption, styles.author]}>
           Lucas Gabriel Marins dos Santos • Dispositivos Móveis

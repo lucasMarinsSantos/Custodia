@@ -16,4 +16,6 @@
     <issue id="UnusedResources">
         <ignore regexp="react_native_dev_server" />
     </issue>
+    <!-- O ExifInterface da plataforma é confiável a partir da API 25 e o app exige a 26: dispensa a androidx. -->
+    <issue id="ExifInterface" severity="ignore" />
 </lint>

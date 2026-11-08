@@ -21,6 +21,8 @@ export default function RecoveryScreen({ navigation, route }: any) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [secureKeyboard, setSecureKeyboard] = useState(false);
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [totp, setTotp] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -31,6 +33,7 @@ export default function RecoveryScreen({ navigation, route }: any) {
       const o = await Vault.getRecoveryOptions(id);
       setOptions(o);
       setAnswers((o.questions || []).map(() => ''));
+      setTwoFactor(await Vault.isTwoFactorEnabled(id));
     })();
   }, [profileId]);
 
@@ -43,8 +46,10 @@ export default function RecoveryScreen({ navigation, route }: any) {
     setBusy(true);
     try {
       const secret = method === 'code' ? code : method === 'phrase' ? phrase : answers;
-      const { newRecoveryCode } = await Vault.recover(profileId, method, secret as any, pw);
+      const { newRecoveryCode, dropped } = await Vault.recover(profileId, method, secret as any, pw, twoFactor ? totp : undefined);
       toast(newRecoveryCode ? 'Acesso restaurado. Guarde o NOVO código de recuperação.' : 'Senha mestra redefinida. Reative a biometria em Ajustes.', 'success');
+      // Cofre da versão 0.1: frase/perguntas antigas ficaram presas à chave trocada e precisam ser refeitas
+      if (dropped.length) toast('A chave do cofre foi trocada. Configure de novo a frase e as perguntas em Ajustes › Opções de recuperação.', 'info');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -72,6 +77,10 @@ export default function RecoveryScreen({ navigation, route }: any) {
             <Input key={i} label={q} value={answers[i]} secure onChangeText={t => setAnswers(a => a.map((x, j) => (j === i ? t : x)))} placeholder="Resposta" />
           ))
         : null}
+
+      {twoFactor ? (
+        <Input label="Código de verificação (2FA) ou código de reserva" icon="smartphone" value={totp} onChangeText={t => setTotp(t.slice(0, 16))} autoCapitalize="characters" mono placeholder="000000" />
+      ) : null}
 
       <Text style={[Type.h3, styles.title]}>Nova senha mestra</Text>
       <MasterPasswordInput label="Nova senha mestra" value={pw} onChange={setPw} secureKeyboard={secureKeyboard} />

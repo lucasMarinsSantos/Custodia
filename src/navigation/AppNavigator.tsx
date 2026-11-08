@@ -24,12 +24,38 @@ import FoldersScreen from '../screens/vault/FoldersScreen';
 
 import GeneratorScreen from '../screens/generator/GeneratorScreen';
 import SecurityScreen from '../screens/security/SecurityScreen';
+import AlertsScreen from '../screens/security/AlertsScreen';
+import AccessLogScreen from '../screens/security/AccessLogScreen';
+import BreachReportScreen from '../screens/security/BreachReportScreen';
+import DuplicatesScreen from '../screens/security/DuplicatesScreen';
+import RiskScreen from '../screens/security/RiskScreen';
+import UrlCheckScreen from '../screens/security/UrlCheckScreen';
 
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import SecuritySettingsScreen from '../screens/settings/SecuritySettingsScreen';
 import ChangePasswordScreen from '../screens/settings/ChangePasswordScreen';
 import RecoveryOptionsScreen from '../screens/settings/RecoveryOptionsScreen';
 import AboutScreen from '../screens/settings/AboutScreen';
+import SyncScreen from '../screens/settings/SyncScreen';
+import PasswordAgeSettingsScreen from '../screens/settings/PasswordAgeSettingsScreen';
+
+// notas seguras e formulários
+import NotesScreen from '../screens/notes/NotesScreen';
+import NoteDetailScreen from '../screens/notes/NoteDetailScreen';
+import NoteEditScreen from '../screens/notes/NoteEditScreen';
+import FormsScreen from '../screens/forms/FormsScreen';
+import FormEditScreen from '../screens/forms/FormEditScreen';
+import ImportExportScreen from '../screens/settings/ImportExportScreen';
+import BackupScreen from '../screens/settings/BackupScreen';
+// Integrações: preenchimento automático, extensão de navegador
+import AutofillScreen from '../screens/settings/AutofillScreen';
+import BrowserExtensionScreen from '../screens/settings/BrowserExtensionScreen';
+import AutofillRequestScreen from '../screens/autofill/AutofillRequestScreen';
+import { IntegrationHost } from '../components/IntegrationHost';
+import { navigationRef } from './navigationRef';
+import TwoFactorScreen from '../screens/settings/TwoFactorScreen';
+import ProfilesScreen from '../screens/settings/ProfilesScreen';
+import FolderRulesScreen from '../screens/vault/FolderRulesScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -37,6 +63,7 @@ const Tab = createBottomTabNavigator();
 const TABS = [
   { name: 'Vault', component: VaultScreen, icon: 'key', label: 'Cofre' },
   { name: 'Generator', component: GeneratorScreen, icon: 'refresh-cw', label: 'Gerador' },
+  { name: 'Notes', component: NotesScreen, icon: 'file-text', label: 'Notas' },
   { name: 'Security', component: SecurityScreen, icon: 'shield', label: 'Saúde das Senhas' },
   { name: 'Settings', component: SettingsScreen, icon: 'settings', label: 'Ajustes' },
 ];
@@ -100,7 +127,28 @@ const MAIN_SCREENS: Record<string, React.ComponentType<any>> = {
   ChangePassword: ChangePasswordScreen,
   RecoveryOptions: RecoveryOptionsScreen,
   About: AboutScreen,
+  ImportExport: ImportExportScreen,
+  Backup: BackupScreen,
   GeneratorModal: GeneratorScreen,
+  Sync: SyncScreen,
+  NoteDetail: NoteDetailScreen,
+  NoteEdit: NoteEditScreen,
+  Forms: FormsScreen,
+  FormEdit: FormEditScreen,
+  PasswordAgeSettings: PasswordAgeSettingsScreen,
+  // segurança
+  Alerts: AlertsScreen,
+  AccessLog: AccessLogScreen,
+  BreachReport: BreachReportScreen,
+  Duplicates: DuplicatesScreen,
+  Risk: RiskScreen,
+  UrlCheck: UrlCheckScreen,
+  Autofill: AutofillScreen,
+  BrowserExtension: BrowserExtensionScreen,
+  AutofillRequest: AutofillRequestScreen,
+  TwoFactor: TwoFactorScreen,
+  Profiles: ProfilesScreen,
+  FolderRules: FolderRulesScreen,
 };
 
 const theme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: Colors.background, primary: Colors.primary } };
@@ -117,7 +165,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer theme={theme}>
+    <NavigationContainer theme={theme} ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
@@ -146,13 +194,14 @@ export default function AppNavigator() {
           </>
         )}
       </Stack.Navigator>
+      {status === 'unlocked' ? <IntegrationHost /> : null}
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: 'center', backgroundColor: Colors.background },
-  tab: { alignItems: 'center', width: 80 },
+  tab: { alignItems: 'center', width: 72 }, // 5 abas cabem em 360 dp
   tabPill: { width: 56, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   tabPillActive: { backgroundColor: Colors.primarySoft },
   tabLabel: { fontSize: 11, marginTop: 2, fontWeight: '500', color: Colors.textTertiary },

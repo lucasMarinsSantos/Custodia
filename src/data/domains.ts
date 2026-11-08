@@ -1,5 +1,5 @@
-// Custódia — Base local de domínios conhecidos (categorização inteligente — US-1.13)
-// Sprint 1: base embarcada no app. A atualização automática por API fica para uma sprint futura.
+// Custódia: Base local de domínios conhecidos
+// Base embarcada no app.
 
 import { CredentialCategory } from '../types/models';
 

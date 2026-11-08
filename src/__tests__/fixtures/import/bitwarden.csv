@@ -1,0 +1,5 @@
+folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+Finanças/Bancos,1,login,Itaú,Agência 1234,"Agência: 1234
+Conta: 56789-0",0,https://www.itau.com.br,lucas.itau,It@u#2026Seguro,JBSWY3DPEHPK3PXP
+,,login,Spotify,,,0,https://open.spotify.com,lucas@exemplo.com,Sp0tify!Music,
+Pessoal,,note,Wi-Fi de casa,Rede: CasaLucas | Senha: wifi#2026,,0,,,,

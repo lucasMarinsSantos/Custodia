@@ -6,7 +6,7 @@
 
 import { vaultDb } from '../db/Database';
 import { uuid } from '../crypto';
-import { ChangeType, Credential, CredentialVersion, Folder } from '../types/models';
+import { ChangeType, Credential, CredentialVersion, Folder, PasswordHistoryEntry } from '../types/models';
 import { bus, Events } from './events';
 
 const now = () => new Date().toISOString();
@@ -31,9 +31,32 @@ export function newCredential(partial: Partial<Credential> = {}): Credential {
     usageCount: 0,
     lastUsedAt: null,
     passwordChangedAt: ts,
+    expiresAt: null,
+    inactive: false,
+    maxPasswordAgeDays: null,
+    passwordHistory: [],
+    associatedDomains: [],
+    androidPackages: [],
     createdAt: ts,
     updatedAt: ts,
     ...partial,
+  };
+}
+
+/** Completa registros gravados por versões anteriores (0.1) com os campos novos. */
+export function normalizeCredential(c: Credential): Credential {
+  return {
+    ...c,
+    customFields: c.customFields || [],
+    icon: c.icon || { kind: 'auto' },
+    usageCount: c.usageCount || 0,
+    lastUsedAt: c.lastUsedAt ?? null,
+    expiresAt: c.expiresAt ?? null,
+    inactive: !!c.inactive,
+    maxPasswordAgeDays: c.maxPasswordAgeDays ?? null,
+    passwordHistory: Array.isArray(c.passwordHistory) ? c.passwordHistory : [],
+    associatedDomains: Array.isArray(c.associatedDomains) ? c.associatedDomains : [],
+    androidPackages: Array.isArray(c.androidPackages) ? c.androidPackages : [],
   };
 }
 
@@ -65,6 +88,7 @@ function describeChanges(prev: Credential | null, next: Credential): string {
     ['category', 'categoria'],
     ['folderId', 'pasta'],
     ['favorite', 'favorito'],
+    ['expiresAt', 'validade'],
   ];
   for (const [f, label] of fields) if (JSON.stringify(prev[f]) !== JSON.stringify(next[f])) diffs.push(label);
   if (JSON.stringify(prev.customFields) !== JSON.stringify(next.customFields)) diffs.push('campos personalizados');
@@ -95,6 +119,41 @@ async function addVersion(credentialId: string, changeType: ChangeType, summary:
 /** Limites de tamanho dos campos: evitam registros gigantes que travariam o cofre (entrada maliciosa ou colada por engano). */
 export const MAX_FOLDER_DEPTH = 10;
 
+/** Quantidade de senhas anteriores guardadas por credencial. */
+export const MAX_PASSWORD_HISTORY = 10;
+
+/**
+ * Histórico de senhas: quando a senha muda, a anterior entra no topo da lista, a senha atual nunca
+ * aparece nela, não há repetidas e ficam só as MAX_PASSWORD_HISTORY mais recentes.
+ */
+export function pushPasswordHistory(history: PasswordHistoryEntry[], previous: string, current: string, at: string): PasswordHistoryEntry[] {
+  const valid = (Array.isArray(history) ? history : []).filter(
+    h => h && typeof h.password === 'string' && h.password && h.password.length <= LIMITS.password && typeof h.changedAt === 'string',
+  );
+  const list = previous && previous !== current ? [{ password: previous, changedAt: at }, ...valid] : valid;
+  const seen = new Set<string>([current]);
+  const out: PasswordHistoryEntry[] = [];
+  for (const h of list) {
+    if (seen.has(h.password)) continue;
+    seen.add(h.password);
+    out.push({ password: h.password, changedAt: h.changedAt });
+  }
+  return out.slice(0, MAX_PASSWORD_HISTORY);
+}
+
+/**
+ * a credencial inativa (vencida) volta a ficar ativa quando o usuário troca a senha ou muda a data de
+ * validade para o futuro (ou a remove). Trocar a senha mantendo uma data que já passou também reativa: nesse caso
+ * a validade vencida é retirada (senão a próxima varredura a desativaria de novo) e o usuário define outra, se quiser.
+ */
+function reactivateIfRenewed(prev: Credential | null, next: Credential, at = Date.now()): Credential {
+  if (!prev || !next.inactive) return next;
+  const expired = (iso: string | null) => !!iso && Date.parse(iso) <= at;
+  if (prev.expiresAt !== next.expiresAt && !expired(next.expiresAt)) return { ...next, inactive: false };
+  if (prev.password !== next.password) return { ...next, inactive: false, expiresAt: expired(next.expiresAt) ? null : next.expiresAt };
+  return next;
+}
+
 export const LIMITS = { title: 120, username: 256, password: 512, url: 2048, notes: 10000, customFields: 30, fieldLabel: 60, fieldValue: 2048, folderName: 60 };
 
 function validateLimits(c: Credential) {
@@ -116,11 +175,12 @@ export const Repo = {
   // Credenciais
   // ---------------------------------------------------------------------------
   async credentials(): Promise<Credential[]> {
-    return vaultDb.all<Credential>('credentials');
+    return (await vaultDb.all<Credential>('credentials')).map(normalizeCredential);
   },
 
   async credential(id: string): Promise<Credential | null> {
-    return vaultDb.get<Credential>('credentials', id);
+    const c = await vaultDb.get<Credential>('credentials', id);
+    return c ? normalizeCredential(c) : null;
   },
 
   /** Cria ou atualiza a credencial e registra uma versão no histórico. */
@@ -128,7 +188,9 @@ export const Repo = {
     if (!input.title || !input.title.trim()) throw new ValidationError('O título é obrigatório');
     validateLimits(input);
     const prev = await this.credential(input.id);
-    const cred: Credential = { ...input, title: input.title.trim(), updatedAt: now() };
+    const cred: Credential = reactivateIfRenewed(prev, { ...input, title: input.title.trim(), updatedAt: now() });
+    // a base do histórico é o que está gravado (a tela pode ter uma cópia desatualizada)
+    cred.passwordHistory = pushPasswordHistory(prev ? prev.passwordHistory : input.passwordHistory, prev?.password ?? '', cred.password, now());
     if (prev && prev.password !== cred.password) cred.passwordChangedAt = now();
     if (!prev) cred.passwordChangedAt = cred.createdAt;
     await vaultDb.put('credentials', cred);
@@ -160,6 +222,9 @@ export const Repo = {
       // Estatísticas de uso não voltam no tempo
       usageCount: current?.usageCount ?? version.snapshot.usageCount,
       lastUsedAt: current?.lastUsedAt ?? version.snapshot.lastUsedAt,
+      lastUsageAt: current?.lastUsageAt ?? version.snapshot.lastUsageAt ?? null,
+      // o histórico de senhas não volta no tempo (a versão restaurada tem uma lista mais antiga)
+      passwordHistory: current?.passwordHistory ?? version.snapshot.passwordHistory ?? [],
       // Se a pasta original não existe mais, a credencial volta para a raiz
       folderId: version.snapshot.folderId && (await vaultDb.get<Folder>('folders', version.snapshot.folderId)) ? version.snapshot.folderId : null,
     };
@@ -188,7 +253,15 @@ export const Repo = {
   async recordUsage(id: string, at = now()): Promise<void> {
     const cred = await this.credential(id);
     if (!cred) return;
-    await vaultDb.put('credentials', { ...cred, usageCount: (cred.usageCount || 0) + 1, lastUsedAt: at });
+    await vaultDb.put('credentials', { ...cred, usageCount: (cred.usageCount || 0) + 1, lastUsedAt: at, lastUsageAt: at });
+    changed();
+  },
+
+  /** Marca/desmarca como inativa (: credencial vencida). Não é alteração de conteúdo: não gera versão. */
+  async setInactive(id: string, inactive: boolean): Promise<void> {
+    const cred = await this.credential(id);
+    if (!cred || cred.inactive === inactive) return;
+    await vaultDb.put('credentials', { ...cred, inactive, updatedAt: now() });
     changed();
   },
 

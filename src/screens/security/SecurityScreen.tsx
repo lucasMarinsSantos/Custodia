@@ -9,6 +9,7 @@ import { useVaultData } from '../../context/AppState';
 import { Repo } from '../../services/Repository';
 import { AnalysisService } from '../../services/AnalysisService';
 import { Credential, PasswordStrength, StrengthLabels } from '../../types/models';
+import { SecurityCenter } from './SecurityCenter';
 
 const ORDER: PasswordStrength[] = ['very_strong', 'strong', 'medium', 'weak', 'critical'];
 
@@ -102,6 +103,8 @@ export default function SecurityScreen({ navigation }: any) {
 
         </>
       )}
+      {/* central de segurança e estatísticas do cofre */}
+      <SecurityCenter navigation={navigation} />
     </Screen>
   );
 }

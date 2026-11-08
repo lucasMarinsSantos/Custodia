@@ -17,6 +17,8 @@ const TYPE_LABEL: Record<ChangeType, { label: string; icon: string; color: strin
   password: { label: 'Troca de senha', icon: 'key', color: Colors.warning },
   restore: { label: 'Reversão', icon: 'rotate-ccw', color: Colors.purple },
   move: { label: 'Movida', icon: 'folder', color: Colors.textSecondary },
+  import: { label: 'Importada', icon: 'download', color: Colors.info },
+  sync: { label: 'Sincronizada', icon: 'refresh-cw', color: Colors.info },
 };
 
 export default function HistoryScreen({ navigation, route }: any) {

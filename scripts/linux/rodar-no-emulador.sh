@@ -16,5 +16,5 @@ adb wait-for-device
 until adb shell getprop sys.boot_completed 2>/dev/null | grep -q 1; do sleep 2; done
 echo "Instalando o APK..."
 adb install -r dist/custodia.apk
-adb shell am start -n com.custodia.sprint1/com.custodia.MainActivity
+adb shell am start -n com.custodia.sprint2/com.custodia.MainActivity
 echo "[OK] Custódia aberto no emulador."

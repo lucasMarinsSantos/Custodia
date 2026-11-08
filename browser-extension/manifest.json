@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Custódia Connect",
+  "short_name": "Custódia",
+  "version": "2.0.0",
+  "description": "Preenche logins com o cofre Custódia do celular, por um canal local cifrado e com confirmação no celular.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Custódia",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["protocol.js", "bridge.js", "background.js"]
+  },
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite", "alarms", "offscreen"],
+  "host_permissions": ["http://127.0.0.1:17865/*", "http://localhost:17865/*"],
+  "optional_host_permissions": ["http://*/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "connect@custodia.app",
+      "strict_min_version": "128.0"
+    }
+  }
+}

@@ -5,7 +5,7 @@ module.exports = {
     '^@op-engineering/op-sqlite$': '<rootDir>/jest/opSqliteMock.js',
   },
   transformIgnorePatterns: ['node_modules/(?!(@react-native|react-native|@react-navigation|@noble)/)'],
-  testPathIgnorePatterns: ['/node_modules/', '/android/'],
+  testPathIgnorePatterns: ['/node_modules/', '/android/', '<rootDir>/backend/', '<rootDir>/browser-extension/'],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/__tests__/**', '!src/data/**'],
   // Cobertura mínima de 80% nos serviços de criptografia
   coverageThreshold: {

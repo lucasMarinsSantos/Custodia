@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="style.css"><title>Custódia Connect — Pareamento</title></head>
+<body>
+  <main class="page">
+    <header><img src="icons/icon48.png" alt=""><div><h1>Custódia Connect</h1><small>Pareamento com o app</small></div></header>
+    <div class="card">
+      <ol>
+        <li>No celular, abra <b>Custódia › Ajustes › Extensão de navegador</b>, ligue <b>Permitir conexão da extensão</b> e toque em <b>Parear nova extensão</b>.</li>
+        <li>Pelo cabo USB: rode <code>adb forward tcp:17865 tcp:17865</code> no computador e use <code>127.0.0.1:17865</code>. Pela rede Wi-Fi: ligue <b>Aceitar conexões da rede Wi-Fi</b> no app e use o IP mostrado lá.</li>
+        <li>Clique em <b>Parear</b>. Confira se o código abaixo é o mesmo que aparece no celular e toque em <b>Permitir</b> lá.</li>
+      </ol>
+      <label for="address" class="label">Endereço do celular</label>
+      <input id="address" placeholder="127.0.0.1:17865" spellcheck="false" autocomplete="off" inputmode="url">
+      <label for="name" class="label">Nome deste navegador (aparece no celular)</label>
+      <input id="name" maxlength="40" autocomplete="off">
+      <div id="code" class="code" aria-live="assertive" hidden></div>
+      <div id="msg" class="msg" role="status" aria-live="polite" hidden></div>
+      <div class="actions">
+        <button type="button" id="pair">Parear</button>
+        <button type="button" class="ghost" id="test">Testar conexão</button>
+        <button type="button" class="ghost" id="forget">Desconectar</button>
+      </div>
+    </div>
+    <p class="muted">As senhas nunca ficam guardadas na extensão: cada uma é pedida ao celular na hora, cifrada com AES-256-GCM, e só chega depois que você toca em Permitir.</p>
+  </main>
+  <script src="protocol.js"></script>
+  <script src="bridge.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

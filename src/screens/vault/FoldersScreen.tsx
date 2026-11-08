@@ -8,12 +8,15 @@ import { LIMITS, newFolder, Repo } from '../../services/Repository';
 import { Vault } from '../../services/VaultService';
 import { Credential, Folder } from '../../types/models';
 import { toast } from '../../services/events';
+import { PolicyService } from '../../services/PolicyService';
+import { useReauth } from '../../components/ReauthPrompt';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export default function FoldersScreen({ navigation }: any) {
   const [data] = useVaultData(async () => ({ folders: await Repo.folders(), creds: await Repo.credentials() }), { folders: [] as Folder[], creds: [] as Credential[] });
   const [editing, setEditing] = useState<Folder | null>(null);
+  const reauth = useReauth();
 
   const tree: { folder: Folder; depth: number }[] = [];
   const walk = (parent: string | null, depth: number) => {
@@ -32,6 +35,10 @@ export default function FoldersScreen({ navigation }: any) {
     if (!editing) return;
     try {
       const isNewFolder = !data.folders.find(f => f.id === editing.id);
+      // Tirar uma pasta de dentro de outra com regras de segurança afrouxa as regras: pede a senha
+      const before = data.folders.find(f => f.id === editing.id);
+      const loosens = !!before && before.parentId !== editing.parentId && !PolicyService.isEmpty(PolicyService.effective(data.folders, before.parentId));
+      if (loosens && !(await reauth.ensure())) return;
       await Repo.saveFolder(editing);
       toast(isNewFolder ? `Pasta "${editing.name.trim()}" criada` : 'Pasta atualizada', 'success');
       setEditing(null);
@@ -92,10 +99,12 @@ export default function FoldersScreen({ navigation }: any) {
                   </View>
                   <View style={styles.flex}>
                     <Text style={Type.bodyStrong}>{f.name}</Text>
+                    {!PolicyService.isEmpty(f.policy) ? <Text style={Type.caption}>Com regras de segurança</Text> : null}
                     <Text style={Type.caption}>
                       {count(f.id)} {count(f.id) === 1 ? 'credencial' : 'credenciais'}
                     </Text>
                   </View>
+                  {!PolicyService.isEmpty(f.policy) ? <Icon name="shield" size={16} color={Colors.primary} style={styles.ml8} /> : null}
                   <Icon name="chevron-right" size={18} color={Colors.textTertiary} style={styles.ml8} />
                 </View>
               </TouchableOpacity>
@@ -119,10 +128,24 @@ export default function FoldersScreen({ navigation }: any) {
                 ))}
             </View>
             <Button title="Salvar" icon="check" onPress={save} />
+            {!isNew ? (
+              <Button
+                title="Regras de segurança"
+                variant="outline"
+                icon="shield"
+                style={styles.mt10}
+                onPress={() => {
+                  const id = editing.id;
+                  setEditing(null);
+                  navigation.navigate('FolderRules', { folderId: id });
+                }}
+              />
+            ) : null}
             {!isNew ? <Button title="Excluir pasta" variant="danger" icon="trash-2" onPress={remove} style={styles.mt10} /> : null}
           </>
         ) : null}
       </Sheet>
+      {reauth.element}
     </View>
   );
 }

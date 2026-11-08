@@ -1,9 +1,7 @@
-# No repositório fica só o que precisa para compilar, testar e rodar o app.
-
-# Dependências (recriadas com `npm ci`)
+# Dependências
 node_modules/
 
-# Builds do Android e do Gradle
+# Builds
 build/
 android/app/build/
 android/build/
@@ -11,14 +9,6 @@ android/build/
 .kotlin/
 .cxx/
 *.hprof
-
-# Configuração local da máquina (caminho do SDK, preferências da IDE)
-local.properties
-.idea/
-*.iml
-.vscode/
-
-# APK e pacotes gerados (veja o README para gerar)
 dist/
 *.apk
 *.aab
@@ -26,45 +16,30 @@ dist/
 *.jsbundle
 build-check/
 
-# Chaves de assinatura (a debug.keystore padrão do React Native pode subir)
+# Configuração local
+local.properties
+.idea/
+*.iml
+.vscode/
+
+# Chaves e ambiente
 *.keystore
 !debug.keystore
 *.jks
 .env
 .env.*
 
-# Testes e ferramentas
+# Testes e logs
 coverage/
 .eslintcache
 .metro-health-check*
 *.log
 npm-debug.log*
 yarn-error.log*
-
-# Saídas locais dos scripts (logs, gravações e capturas)
 logs/
+
+# Arquivos locais
 demo/
-
-# Roteiro de teste de ponta a ponta e gravação de vídeo (uso local)
-scripts/demo/
-scripts/windows/gravar-demo.bat
-scripts/windows/testar-build-do-studio.bat
-scripts/linux/gravar-demo.sh
-scripts/linux/testar-build-do-studio.sh
-
-# Documentos de estudo e da entrega (ficam só na máquina)
+demo-celular/
 docs/
 *.mp4
-
-# iOS / Ruby (o projeto é só Android)
-ios/
-Gemfile
-Gemfile.lock
-.bundle/
-vendor/
-**/Pods/
-
-# Sistema operacional
-.DS_Store
-Thumbs.db
-desktop.ini

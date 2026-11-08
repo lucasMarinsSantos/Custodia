@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Linking,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -23,6 +24,7 @@ import {
   Sheet,
 } from '../../components/ui';
 import { ServiceIcon } from '../../components/widgets';
+import { LifecycleBanners, PasswordHistoryCard, UsageInfo } from '../../components/lifecycle';
 import { Colors, StrengthColors, StrengthTextColors, Type } from '../../theme';
 import { useVaultData } from '../../context/AppState';
 import { Repo } from '../../services/Repository';
@@ -40,8 +42,22 @@ import {
 } from '../../types/models';
 import { formatDate, hostnameOf, normalizeUrl, timeAgo } from '../../utils';
 import { toast } from '../../services/events';
+import { DRAG_MSG, DragService } from '../../services/DragService';
+import { AssociatedSitesView } from '../../components/AssociatedSites';
+import { FolderRulesBanner, useFolderGuard } from '../../components/ReauthPrompt';
+import { PolicyService } from '../../services/PolicyService';
 
 const LEVELS = ['critical', 'weak', 'medium', 'strong', 'very_strong'];
+
+/** Toque longo: arrasta o usuário/senha para o outro app da tela dividida. */
+async function dragField(c: Credential, field: 'username' | 'password') {
+  try {
+    await DragService.start(c, field);
+  } catch (e: any) {
+    const msg = e?.message || DRAG_MSG.failed;
+    toast(msg, msg === DRAG_MSG.notMultiWindow ? 'info' : 'error');
+  }
+}
 
 export default function CredentialDetailScreen({ navigation, route }: any) {
   const id: string = route.params?.id;
@@ -59,6 +75,10 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
   const c = data.cred;
 
   const analysis = useMemo(() => (c ? analyzeCached(c.password) : null), [c]);
+  // Regras da pasta: reautenticar para ver/copiar e tempo de limpeza da área de transferência
+  const policy = useMemo(() => (c ? PolicyService.forCredential(data.folders, c) : null), [c, data.folders]);
+  const guard = useFolderGuard(policy);
+  const guarded = guard.guarded;
   if (!c || !analysis) {
     return (
       <Screen title="Credencial" onBack={() => navigation.goBack()}>
@@ -80,7 +100,8 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
     countUse = false,
   ) => {
     try {
-      await ClipboardService.copy(value, label, sensitive);
+      if (sensitive && !(await guard.allow())) return;
+      await ClipboardService.copy(value, label, sensitive, sensitive ? guard.clipboardSeconds() : undefined);
       if (countUse) await Repo.recordUsage(c.id);
     } catch (e: any) {
       toast(e?.message || 'Não foi possível copiar.', 'error');
@@ -143,7 +164,7 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
           <FavoriteButton credential={c} />
           <IconButton
             name="edit-2"
-            onPress={() => navigation.navigate('CredentialEdit', { id: c.id })}
+            onPress={() => guarded(() => navigation.navigate('CredentialEdit', { id: c.id }))}
             label="Editar"
           />
         </>
@@ -156,6 +177,8 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
       />
 
       <WeakBanner strength={analysis.strength} password={c.password} />
+      {/* validade e sugestão de troca */}
+      <LifecycleBanners credential={c} folders={data.folders} onChangePassword={() => navigation.navigate('CredentialEdit', { id: c.id })} />
 
       <Card style={styles.fieldsCard}>
         <Field
@@ -164,6 +187,7 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
           onCopy={
             c.username ? () => copy(c.username, 'Usuário', false) : undefined
           }
+          onLongPress={() => dragField(c, 'username')}
         />
         <Field
           label="Senha"
@@ -176,7 +200,7 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
           mono
           extra={
             <TouchableOpacity
-              onPress={() => setShowPw(v => !v)}
+              onPress={() => guard.toggle(showPw, setShowPw)}
               style={styles.fieldBtn}
               accessibilityRole="button"
               accessibilityLabel={showPw ? 'Ocultar senha' : 'Mostrar senha'}
@@ -190,6 +214,7 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
           }
           onCopy={() => copy(c.password, 'Senha', true, true)}
           copyLabel="Copiar senha"
+          onLongPress={() => dragField(c, 'password')}
         />
         <StrengthBar strength={analysis.strength} />
         {c.url ? (
@@ -200,7 +225,7 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
             key={f.id}
             field={f}
             revealed={!!revealed[f.id]}
-            onToggle={() => setRevealed(r => ({ ...r, [f.id]: !r[f.id] }))}
+            onToggle={() => guard.toggle(!!revealed[f.id], v => setRevealed(r => ({ ...r, [f.id]: v })))}
             onCopy={() =>
               copy(f.value, f.label || 'Campo', f.type === 'hidden')
             }
@@ -209,22 +234,25 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
         <NotesBlock notes={c.notes} />
       </Card>
 
+      <AssociatedSitesView credential={c} />
+      <FolderRulesBanner policy={policy} />
+
       <Section title="Ações">
         <View style={styles.actions}>
           <Action
             icon="clock"
             label="Histórico"
-            onPress={() => navigation.navigate('History', { id: c.id })}
+            onPress={() => guarded(() => navigation.navigate('History', { id: c.id }))}
           />
           <Action
             icon="folder"
             label="Mover"
-            onPress={() => setMoveOpen(true)}
+            onPress={() => guarded(() => setMoveOpen(true))}
           />
           <Action
             icon="edit-2"
             label="Editar"
-            onPress={() => navigation.navigate('CredentialEdit', { id: c.id })}
+            onPress={() => guarded(() => navigation.navigate('CredentialEdit', { id: c.id }))}
           />
           <Action
             icon="image"
@@ -254,8 +282,13 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
             value={formatDate(c.passwordChangedAt)}
           />
           <KeyValue label="Último acesso" value={timeAgo(c.lastUsedAt)} />
+          {/* "Vezes utilizada", "Último uso", idade e validade */}
+          <UsageInfo credential={c} folders={data.folders} />
         </Card>
       </Section>
+
+      {/* últimas 10 senhas */}
+      <PasswordHistoryCard credential={c} guard={guard} />
 
       <Button
         title="Excluir credencial"
@@ -292,6 +325,7 @@ export default function CredentialDetailScreen({ navigation, route }: any) {
           </Text>
         ) : null}
       </Sheet>
+      {guard.element}
     </Screen>
   );
 }
@@ -489,6 +523,7 @@ function Field({
   mono,
   hidden,
   copyLabel,
+  onLongPress,
 }: {
   label: string;
   value: string;
@@ -497,23 +532,12 @@ function Field({
   mono?: boolean;
   hidden?: boolean;
   copyLabel?: string;
+  /** Toque longo: arrastar para outro app em tela dividida. */
+  onLongPress?: () => void;
 }) {
   return (
     <View style={styles.field}>
-      <View
-        style={styles.flex}
-        accessible
-        accessibilityLabel={`${label}: ${hidden ? 'oculto' : value}`}
-      >
-        <Text style={Type.label}>{label}</Text>
-        <Text
-          style={[mono ? Type.mono : Type.body, styles.fieldValue]}
-          numberOfLines={3}
-          selectable={!mono}
-        >
-          {value}
-        </Text>
-      </View>
+      <FieldBody label={label} value={value} hidden={hidden} mono={mono} onLongPress={onLongPress} />
       {extra}
       {onCopy ? (
         <TouchableOpacity
@@ -526,6 +550,39 @@ function Field({
         </TouchableOpacity>
       ) : null}
     </View>
+  );
+}
+
+/** Rótulo e valor do campo. Com `onLongPress`, o toque longo inicia o arrastar (e a seleção de texto sai). */
+function FieldBody({ label, value, hidden, mono, onLongPress }: { label: string; value: string; hidden?: boolean; mono?: boolean; onLongPress?: () => void }) {
+  const a11yLabel = `${label}: ${hidden ? 'oculto' : value}`;
+  const content = (
+    <>
+      <Text style={Type.label}>{label}</Text>
+      <Text style={[mono ? Type.mono : Type.body, styles.fieldValue]} numberOfLines={3} selectable={!mono && !onLongPress}>
+        {value}
+      </Text>
+    </>
+  );
+  if (!onLongPress) {
+    return (
+      <View style={styles.flex} accessible accessibilityLabel={a11yLabel}>
+        {content}
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      style={styles.flex}
+      accessible
+      accessibilityLabel={a11yLabel}
+      accessibilityHint="Toque longo para arrastar para outro app em tela dividida"
+      accessibilityActions={[{ name: 'longpress', label: 'Arrastar para outro app' }]}
+      onAccessibilityAction={onLongPress}
+      onLongPress={onLongPress}
+    >
+      {content}
+    </Pressable>
   );
 }
 

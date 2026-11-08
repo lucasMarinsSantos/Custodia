@@ -10,7 +10,7 @@ module.exports = {
       rules: { 'no-bitwise': 'off' },
     },
     {
-      // Testes e roteiros de automação: o SonarQube os trata como código de teste (fora do "main"), onde
+      // Testes e scripts: o SonarQube os trata como código de teste (fora do "main"), onde
       // repetir literais e ter fluxos longos e lineares é esperado.
       files: ['src/__tests__/**', 'scripts/**', 'jest.setup.js', '__mocks__/**'],
       rules: {

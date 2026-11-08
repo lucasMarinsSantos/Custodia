@@ -28,8 +28,8 @@ if not defined DEV (
 )
 echo Instalando no aparelho %DEV%...
 adb -s %DEV% install -r dist\custodia.apk
-if errorlevel 1 (echo [ERRO] Falha ao instalar. Se já houver outra versão assinada com outra chave: adb uninstall com.custodia.sprint1 & set "ERR=1" & goto :fim)
-adb -s %DEV% shell am start -n com.custodia.sprint1/com.custodia.MainActivity >nul
+if errorlevel 1 (echo [ERRO] Falha ao instalar. Se já houver outra versão assinada com outra chave: adb uninstall com.custodia.sprint2 & set "ERR=1" & goto :fim)
+adb -s %DEV% shell am start -n com.custodia.sprint2/com.custodia.MainActivity >nul
 echo [OK] Custódia instalado e aberto no celular.
 set "ERR=0"
 :fim

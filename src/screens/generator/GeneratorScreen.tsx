@@ -5,10 +5,12 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Button, Card, Icon, ListCard, Screen, Section, ToggleRow } from '../../components/ui';
 import { Slider, StrengthMeter } from '../../components/widgets';
 import { Colors, Touch, Type } from '../../theme';
-import { DefaultPasswordOptions, PasswordOptions, PasswordService } from '../../services/PasswordService';
+import { DefaultPasswordOptions, PasswordOptions } from '../../services/PasswordService';
 import { ClipboardService } from '../../services/ClipboardService';
 import { vaultDb } from '../../db/Database';
 import { toast } from '../../services/events';
+import { DictionaryService } from '../../services/DictionaryService';
+import { DictionaryWarning } from '../../components/DictionaryWarning';
 
 const Colored = memo(function ColoredPassword({ pw }: { pw: string }) {
   return (
@@ -33,7 +35,8 @@ export default function GeneratorScreen({ navigation, route }: any) {
   const [history, setHistory] = useState<string[]>([]);
 
   const regenerate = useCallback((o: PasswordOptions = opts) => {
-    const p = PasswordService.generate(o);
+    // a senha gerada é testada contra o dicionário e sorteada de novo se cair nele
+    const p = DictionaryService.generate(o);
     setPw(p);
     setHistory(h => [p, ...h.filter(x => x !== p)].slice(0, 5));
   }, [opts]);
@@ -103,6 +106,7 @@ export default function GeneratorScreen({ navigation, route }: any) {
         <View style={styles.meter}>
           <StrengthMeter password={pw} showFeedback={false} />
         </View>
+        <DictionaryWarning password={pw} />
         <View style={styles.actions}>
           <Button small variant="outline" icon="refresh-cw" title="Nova senha" onPress={() => regenerate()} />
           <Button small icon="copy" title="Copiar" onPress={() => ClipboardService.copy(pw, 'Senha')} />

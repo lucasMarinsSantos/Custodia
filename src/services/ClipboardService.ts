@@ -32,8 +32,11 @@ bus.on(Events.LOCKED, () => {
 });
 
 export const ClipboardService = {
-  /** Copia o texto. Conteúdo sensível (senhas) é limpo automaticamente. */
-  async copy(text: string, label: string, sensitive = true) {
+  /**
+   * Copia o texto. Conteúdo sensível (senhas) é limpo automaticamente.
+   * `seconds`: tempo de limpeza da regra da pasta; sem ele vale o dos Ajustes.
+   */
+  async copy(text: string, label: string, sensitive = true, seconds?: number) {
     await System.setClipboard(text, sensitive);
     const fem = /^(senha|url|nota|chave|frase)\b|a$/i.test(label.trim().split(' ')[0]);
     if (!sensitive) {
@@ -42,7 +45,7 @@ export const ClipboardService = {
     }
     lastCopied = text;
     if (timer) clearTimeout(timer);
-    const secs = Vault.settings.clipboardSeconds || 30;
+    const secs = seconds && seconds > 0 ? seconds : Vault.settings.clipboardSeconds || 30;
     timer = setTimeout(() => ClipboardService.clearNow(), secs * 1000);
     publish({ label, expiresAt: Date.now() + secs * 1000 });
     // Texto do cenário BDD: "Senha copiada, será apagada em breve" (a contagem fica no indicador)

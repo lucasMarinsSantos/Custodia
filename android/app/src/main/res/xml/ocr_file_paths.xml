@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider do OCR: a câmera do sistema grava a foto só nesta pasta do cache, apagada após o reconhecimento -->
+<paths>
+    <cache-path name="ocr" path="ocr/" />
+</paths>

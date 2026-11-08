@@ -12,5 +12,5 @@ DEV="$(adb devices | awk 'NR>1 && $2=="device" && $1 !~ /^emulator-/{print $1; e
 [ -n "$DEV" ] || { echo "[ERRO] Nenhum celular conectado. Ative a Depuração USB e conecte o cabo, ou use a depuração sem fio (README)."; exit 1; }
 echo "Instalando no aparelho $DEV..."
 adb -s "$DEV" install -r dist/custodia.apk
-adb -s "$DEV" shell am start -n com.custodia.sprint1/com.custodia.MainActivity >/dev/null
+adb -s "$DEV" shell am start -n com.custodia.sprint2/com.custodia.MainActivity >/dev/null
 echo "[OK] Custódia instalado e aberto no celular."

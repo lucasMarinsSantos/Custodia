@@ -20,6 +20,16 @@ function open({ name, encryptionKey }) {
     };
   }
   const run = (sql, params = []) => {
+    // PRAGMA rekey do SQLCipher: troca a chave da entrada (o arquivo passa a abrir só com a chave nova)
+    const rekey = /^\s*PRAGMA\s+rekey\s*=\s*'([^']*)'\s*;?\s*$/i.exec(sql);
+    if (rekey) {
+      if (mock.failNextRekey) {
+        mock.failNextRekey = false;
+        throw new Error('SQLCipher: rekey falhou (simulado)');
+      }
+      entry.key = rekey[1];
+      return { rows: [], rowsAffected: 0 };
+    }
     const stmt = entry.db.prepare(sql);
     if (stmt.reader) return { rows: stmt.all(...params), rowsAffected: 0 };
     const info = stmt.run(...params);
@@ -36,4 +46,7 @@ function open({ name, encryptionKey }) {
   };
 }
 
-module.exports = { open, __dbs: dbs };
+/** Controles dos testes: `failNextRekey` simula uma falha do SQLCipher no próximo PRAGMA rekey. */
+const mock = { failNextRekey: false };
+
+module.exports = { open, __dbs: dbs, __mock: mock };

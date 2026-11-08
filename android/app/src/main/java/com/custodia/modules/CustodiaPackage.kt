@@ -13,6 +13,15 @@ class CustodiaPackage : BaseReactPackage() {
       when (name) {
         SecurityModule.NAME -> SecurityModule(reactContext)
         SystemModule.NAME -> SystemModule(reactContext)
+        FilesModule.NAME -> FilesModule(reactContext)
+        NetModule.NAME -> NetModule(reactContext)
+        NotificationModule.NAME -> NotificationModule(reactContext)
+        TransferModule.NAME -> TransferModule(reactContext)
+        BackupModule.NAME -> BackupModule(reactContext)
+        OcrModule.NAME -> OcrModule(reactContext)
+        AutofillModule.NAME -> AutofillModule(reactContext)
+        DragModule.NAME -> DragModule(reactContext)
+        BrowserBridgeModule.NAME -> BrowserBridgeModule(reactContext)
         else -> null
       }
 
@@ -20,6 +29,15 @@ class CustodiaPackage : BaseReactPackage() {
     listOf(
             SecurityModule.NAME to SecurityModule::class.java.name,
             SystemModule.NAME to SystemModule::class.java.name,
+            FilesModule.NAME to FilesModule::class.java.name,
+            NetModule.NAME to NetModule::class.java.name,
+            NotificationModule.NAME to NotificationModule::class.java.name,
+            TransferModule.NAME to TransferModule::class.java.name,
+            BackupModule.NAME to BackupModule::class.java.name,
+            OcrModule.NAME to OcrModule::class.java.name,
+            AutofillModule.NAME to AutofillModule::class.java.name,
+            DragModule.NAME to DragModule::class.java.name,
+            BrowserBridgeModule.NAME to BrowserBridgeModule::class.java.name,
         )
         .associate { (name, className) ->
           name to

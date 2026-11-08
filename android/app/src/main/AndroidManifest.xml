@@ -4,6 +4,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Biometria (BiometricPrompt) -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- estado da rede (vazamentos, verificação de site, sincronização) e notificações de segurança -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- OCR: a foto é tirada pelo app de câmera do sistema (sem a permissão CAMERA) -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 
     <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.proximity" android:required="false" />
@@ -19,12 +29,14 @@
       android:dataExtractionRules="@xml/data_extraction_rules"
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
+      android:networkSecurityConfig="@xml/network_security_config"
       android:supportsRtl="true">
 
       <activity
         android:name=".MainActivity"
         android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
         android:launchMode="singleTask"
+        android:resizeableActivity="true"
         android:windowSoftInputMode="adjustResize"
         android:exported="true">
         <intent-filter>
@@ -32,5 +44,30 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- Preenchimento automático em outros apps -->
+      <service
+        android:name=".autofill.CustodiaAccessibilityService"
+        android:label="@string/integracao_accessibility_label"
+        android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="android.accessibilityservice.AccessibilityService" />
+        </intent-filter>
+        <meta-data
+          android:name="android.accessibilityservice"
+          android:resource="@xml/custodia_accessibility_service" />
+      </service>
+
+      <!-- Foto para o OCR: arquivo temporário entregue ao app de câmera -->
+      <provider
+        android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.ocrprovider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+          android:name="android.support.FILE_PROVIDER_PATHS"
+          android:resource="@xml/ocr_file_paths" />
+      </provider>
     </application>
 </manifest>

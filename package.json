@@ -1,6 +1,6 @@
 {
   "name": "custodia",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Custódia, gerenciador de senhas para Android",
   "private": true,
   "scripts": {

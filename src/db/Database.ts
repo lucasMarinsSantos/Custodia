@@ -5,7 +5,10 @@
 import { open, type DB } from '@op-engineering/op-sqlite';
 import { sha256Hex } from '../crypto';
 
-export type Collection = 'credentials' | 'folders' | 'versions' | 'logos';
+export type Collection = 'credentials' | 'folders' | 'versions' | 'logos' | 'notes' | 'forms' | 'alerts' | 'accessLog';
+
+/** Coleções com dados do usuário (sincronizadas, exportadas e incluídas no backup). */
+export const USER_COLLECTIONS: Collection[] = ['credentials', 'folders', 'notes', 'forms'];
 
 export interface WriteEvent {
   collection: Collection;
@@ -15,6 +18,9 @@ export interface WriteEvent {
 }
 
 type WriteListener = (e: WriteEvent) => void;
+
+/** Passes de sobrescrita com dados aleatórios antes de apagar um documento. */
+export const SECURE_DELETE_PASSES = 3;
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS docs (
@@ -53,6 +59,8 @@ export class VaultDatabase {
       // Falha aqui se a chave estiver errada (SQLCipher retorna "file is not a database")
       await db.execute('SELECT count(*) AS n FROM sqlite_master');
       await db.execute('PRAGMA journal_mode = DELETE');
+      // o SQLite zera as páginas e células liberadas (DELETE/UPDATE), sem deixar restos no arquivo
+      await db.execute('PRAGMA secure_delete = ON');
       await db.execute('PRAGMA foreign_keys = ON');
       for (const stmt of SCHEMA) await db.execute(stmt);
     } catch (e) {
@@ -79,6 +87,33 @@ export class VaultDatabase {
     this.db = null;
     this.profileId = null;
     this.cache.clear();
+  }
+
+  /**
+   * Troca a chave do SQLCipher. `PRAGMA rekey` recifra todas as páginas dentro de uma transação: se o
+   * processo morrer no meio, o journal desfaz a troca e o arquivo continua com a chave antiga.
+   * A chave é sempre a DEK em hexadecimal (validada aqui), então não há como injetar SQL pela string.
+   */
+  async rekey(keyHex: string): Promise<void> {
+    if (!/^[0-9a-f]{64}$/.test(keyHex)) throw new Error('Chave do cofre inválida');
+    await this.req().execute(`PRAGMA rekey = '${keyHex}'`);
+  }
+
+  /**
+   * Exclusão de um perfil: apaga o conteúdo com `secure_delete` (sobrescreve as páginas liberadas), compacta
+   * e remove o arquivo. Usa uma conexão própria, independente do cofre aberto no momento.
+   */
+  static async destroy(profileId: string, keyHex: string): Promise<void> {
+    const db = open({ name: VaultDatabase.fileName(profileId), encryptionKey: keyHex });
+    try {
+      await db.execute('PRAGMA secure_delete = ON');
+      for (const stmt of SCHEMA) await db.execute(stmt);
+      await db.execute('DELETE FROM docs');
+      await db.execute('DELETE FROM kv');
+      await db.execute('VACUUM');
+    } finally {
+      db.delete();
+    }
   }
 
   getPath(): string | null {
@@ -175,7 +210,24 @@ export class VaultDatabase {
     if (!opts.silent) this.emit({ collection, id: doc.id, deleted: false, data: doc });
   }
 
+  /**
+   * Exclusão segura: antes do DELETE, o conteúdo do documento é sobrescrito no próprio banco por
+   * SECURE_DELETE_PASSES passes de dados aleatórios do mesmo tamanho em bytes (cada passe é gravado no arquivo
+   * antes do seguinte). Com `secure_delete = ON`, o espaço liberado pelo DELETE também é zerado.
+   */
+  async scrub(collection: Collection, id: string): Promise<void> {
+    const db = this.req();
+    for (let pass = 0; pass < SECURE_DELETE_PASSES; pass++) {
+      await db.execute(
+        'UPDATE docs SET data = substr(hex(randomblob((length(CAST(data AS BLOB)) + 1) / 2)), 1, length(CAST(data AS BLOB))), ' +
+          "updated_at = '1970-01-01T00:00:00.000Z' WHERE collection = ? AND id = ?",
+        [collection, id],
+      );
+    }
+  }
+
   async remove(collection: Collection, id: string, opts: { silent?: boolean } = {}): Promise<void> {
+    await this.scrub(collection, id);
     await this.req().execute('DELETE FROM docs WHERE collection = ? AND id = ?', [collection, id]);
     const map = await this.loadCollection(collection);
     map.delete(id);
@@ -202,6 +254,21 @@ export class VaultDatabase {
       'INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
       [key, value],
     );
+  }
+
+  /** Chaves do kv que começam com o prefixo (usado pelos metadados da sincronização). */
+  async kvKeys(prefix: string): Promise<string[]> {
+    const res = await this.req().execute('SELECT key FROM kv WHERE substr(key, 1, ?) = ? ORDER BY key', [prefix.length, prefix]);
+    return (res.rows as any[]).map(r => String(r.key));
+  }
+
+  async removeKv(key: string): Promise<void> {
+    await this.req().execute('DELETE FROM kv WHERE key = ?', [key]);
+  }
+
+  /** Apaga todas as chaves do kv com o prefixo (ex.: desconectar a sincronização). */
+  async removeKvPrefix(prefix: string): Promise<void> {
+    await this.req().execute('DELETE FROM kv WHERE substr(key, 1, ?) = ?', [prefix.length, prefix]);
   }
 
   // -------------------------------------------------------------------------

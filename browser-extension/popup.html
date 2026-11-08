@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="style.css"><title>Custódia</title></head>
+<body class="popup">
+  <header>
+    <img src="icons/icon48.png" alt="">
+    <div><h1>Custódia</h1><small id="domain">—</small></div>
+    <div class="spacer"></div>
+    <div class="status" role="status" aria-live="polite"><span class="dot" id="dot" aria-hidden="true"></span><span id="state">verificando…</span></div>
+  </header>
+  <main>
+    <div id="msg" class="msg" hidden></div>
+    <ul id="list" class="list" aria-label="Logins salvos para este site"></ul>
+    <div class="actions">
+      <button type="button" class="ghost" id="refresh">Atualizar</button>
+      <button type="button" class="ghost" id="options">Pareamento</button>
+    </div>
+  </main>
+  <script src="protocol.js"></script>
+  <script src="bridge.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

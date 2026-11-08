@@ -1,0 +1,105 @@
+{
+  "format": "custodia-export",
+  "version": 1,
+  "app": "Custódia",
+  "exportedAt": "2026-10-01T12:00:00.000Z",
+  "folders": [
+    {
+      "id": "fold-1",
+      "name": "Finanças",
+      "parentId": null,
+      "color": "#0D9488",
+      "icon": "folder",
+      "order": 1,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fold-2",
+      "name": "Bancos",
+      "parentId": "fold-1",
+      "color": "#0D9488",
+      "icon": "folder",
+      "order": 2,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "credentials": [
+    {
+      "id": "cred-1",
+      "title": "Inter",
+      "username": "lucas.inter",
+      "password": "Int3r#Banco2026",
+      "url": "https://inter.co",
+      "notes": "",
+      "category": "finance",
+      "folderId": "fold-2",
+      "favorite": true,
+      "customFields": [
+        {
+          "id": "cf1",
+          "label": "Agência",
+          "value": "0001",
+          "type": "text"
+        }
+      ],
+      "icon": {
+        "kind": "auto"
+      },
+      "usageCount": 3,
+      "lastUsedAt": "2026-09-01T00:00:00.000Z",
+      "passwordChangedAt": "2026-03-01T00:00:00.000Z",
+      "expiresAt": null,
+      "inactive": false,
+      "maxPasswordAgeDays": null,
+      "passwordHistory": [
+        {
+          "password": "Antiga#Senha1",
+          "changedAt": "2026-03-01T00:00:00.000Z"
+        }
+      ],
+      "associatedDomains": [
+        "bancointer.com.br"
+      ],
+      "androidPackages": [
+        "br.com.intermedium"
+      ],
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    }
+  ],
+  "notes": [
+    {
+      "id": "note-1",
+      "title": "Recuperação da carteira",
+      "content": "doze palavras aqui",
+      "category": "recovery_key",
+      "folderId": null,
+      "favorite": false,
+      "attachments": [],
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "forms": [
+    {
+      "id": "form-1",
+      "kind": "address",
+      "label": "Casa",
+      "fullName": "Lucas Marins",
+      "zipCode": "12345-000",
+      "street": "Rua A",
+      "number": "10",
+      "complement": "",
+      "neighborhood": "Centro",
+      "city": "São José dos Campos",
+      "state": "SP",
+      "country": "Brasil",
+      "phone": "",
+      "isPrimary": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}

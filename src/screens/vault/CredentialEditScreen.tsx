@@ -4,25 +4,33 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Badge, Button, Card, Chip, Icon, Input, ListCard, Screen, Section, Sheet, ToggleRow } from '../../components/ui';
 import { ServiceIcon, StrengthMeter } from '../../components/widgets';
+import { ExpiryEditor } from '../../components/lifecycle';
 import { Colors, Touch, Type } from '../../theme';
 import { LIMITS, newCredential, Repo } from '../../services/Repository';
 import { CategoryService, Confidence } from '../../services/CategoryService';
-import { PasswordService } from '../../services/PasswordService';
 import { GLYPHS, ICON_COLORS } from '../../services/IconService';
 import { uuid } from '../../crypto';
 import { System } from '../../native';
 import { toast } from '../../services/events';
+import { DictionaryService } from '../../services/DictionaryService';
+import { DictionaryWarning } from '../../components/DictionaryWarning';
+import { FolderRulesService } from '../../services/FolderRulesService';
 import { CategoryLabels, Credential, CredentialCategory, CustomField, Folder } from '../../types/models';
+import { mergePrefill, OcrScan } from '../../components/OcrScan';
+import { AssociatedSitesEditor } from '../../components/AssociatedSites';
+import { prefillFromAutofill } from '../../services/AssociationService';
 
 export default function CredentialEditScreen({ navigation, route }: any) {
   const editingId: string | undefined = route.params?.id;
-  const [c, setC] = useState<Credential>(() => newCredential({ folderId: route.params?.folderId || null }));
+  const [c, setC] = useState<Credential>(() => newCredential({ folderId: route.params?.folderId || null, ...prefillFromAutofill(route.params) }));
   const [folders, setFolders] = useState<Folder[]>([]);
   const [suggestion, setSuggestion] = useState<{ category: CredentialCategory; name?: string; confidence: Confidence } | null>(null);
   const [iconOpen, setIconOpen] = useState(false);
   const [loaded, setLoaded] = useState(!editingId);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // data de validade digitada e ainda inválida bloqueia o salvamento
+  const expiryInvalid = useRef(false);
   const categoryTouched = useRef(!!editingId);
   // Snapshot para detectar alterações não salvas ao sair da tela
   const initial = useRef<string | null>(null);
@@ -95,6 +103,10 @@ export default function CredentialEditScreen({ navigation, route }: any) {
       setTitleError('O título é obrigatório');
       return toast('O título é obrigatório', 'error');
     }
+    if (expiryInvalid.current) return toast('Data de validade inválida (use DD/MM/AAAA)', 'error');
+    // Força mínima exigida pela pasta
+    const policyError = FolderRulesService.passwordError(folders, c.folderId, c.password);
+    if (policyError) return toast(policyError, 'error');
     setSaving(true);
     try {
       await Repo.saveCredential({ ...c, title: c.title.trim(), username: c.username.trim(), url: c.url.trim(), customFields: c.customFields.filter(f => f.label.trim() || f.value) });
@@ -133,6 +145,9 @@ export default function CredentialEditScreen({ navigation, route }: any) {
         </View>
       </View>
 
+      {/* importar por foto/captura de tela (só no cadastro novo; o usuário revisa antes de salvar) */}
+      {!editingId ? <OcrScan autoStart={route.params?.scan} onApply={p => setC(prev => mergePrefill(prev, p))} /> : null}
+
       <Input
         label="Título"
         required
@@ -160,7 +175,7 @@ export default function CredentialEditScreen({ navigation, route }: any) {
         mono
         right={
           <View style={styles.rowOnly}>
-            <TouchableOpacity onPress={() => set('password', PasswordService.generate())} hitSlop={Touch.hitSlop} style={styles.inlineBtn} accessibilityRole="button" accessibilityLabel="Gerar senha aleatória">
+            <TouchableOpacity onPress={() => set('password', DictionaryService.generate())} hitSlop={Touch.hitSlop} style={styles.inlineBtn} accessibilityRole="button" accessibilityLabel="Gerar senha aleatória">
               <Icon name="shuffle" size={18} color={Colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('GeneratorModal', { returnTo: 'CredentialEdit' })} hitSlop={Touch.hitSlop} style={styles.inlineBtn} accessibilityRole="button" accessibilityLabel="Abrir gerador de senhas">
@@ -169,8 +184,10 @@ export default function CredentialEditScreen({ navigation, route }: any) {
           </View>
         }
         containerStyle={styles.mb8}
+        error={FolderRulesService.passwordError(folders, c.folderId, c.password) ?? undefined}
       />
       <StrengthMeter password={c.password} />
+      <DictionaryWarning password={c.password} />
       <View style={styles.gap} />
 
       <Section title="Categoria">
@@ -240,7 +257,12 @@ export default function CredentialEditScreen({ navigation, route }: any) {
         ))}
       </Section>
 
+      <AssociatedSitesEditor value={c} onChange={next => setC(prev => ({ ...prev, associatedDomains: next.associatedDomains, androidPackages: next.androidPackages }))} />
+
       <Input label="Notas" icon="file-text" value={c.notes} onChangeText={t => set('notes', t)} maxLength={LIMITS.notes} multiline placeholder="Informações adicionais (cifradas)" />
+
+      {/* validade e prazo de troca */}
+      <ExpiryEditor credential={c} onChange={patch => setC(prev => ({ ...prev, ...patch }))} onInvalid={v => (expiryInvalid.current = v)} />
 
       <ListCard style={styles.mb16}>
         <ToggleRow icon="star" title="Favorita" subtitle="Aparece primeiro na ordenação inteligente" value={c.favorite} onChange={v => set('favorite', v)} last />

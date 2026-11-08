@@ -22,7 +22,7 @@ adb shell getprop sys.boot_completed 2>nul | findstr "1" >nul || (ping -n 3 127.
 echo Instalando o APK...
 adb install -r dist\custodia.apk
 if errorlevel 1 (echo [ERRO] Falha ao instalar o APK. & set "ERR=1" & goto :fim)
-adb shell am start -n com.custodia.sprint1/com.custodia.MainActivity
+adb shell am start -n com.custodia.sprint2/com.custodia.MainActivity
 echo [OK] Custódia aberto no emulador.
 set "ERR=0"
 :fim

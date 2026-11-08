@@ -60,13 +60,49 @@ export default function SettingsScreen({ navigation }: any) {
             subtitle={`Inatividade: ${settings.autoLockMinutes} min • proximidade ${settings.proximityLock ? 'ativa' : 'desativada'} • teclado seguro ${settings.secureKeyboard ? 'ativo' : 'desativado'}`}
             onPress={() => navigation.navigate('SecuritySettings')}
           />
-          <Row icon="life-buoy" title="Opções de recuperação" subtitle="Código de emergência, frase e perguntas" onPress={() => navigation.navigate('RecoveryOptions')} last />
+          <Row icon="life-buoy" title="Opções de recuperação" subtitle="Código de emergência, frase e perguntas" onPress={() => navigation.navigate('RecoveryOptions')} />
+          <Row icon="smartphone" title="Verificação em duas etapas" subtitle="Código TOTP do app autenticador para abrir o cofre" onPress={() => navigation.navigate('TwoFactor')} last />
+        </ListCard>
+      </Section>
+
+      <Section title="Integrações">
+        <ListCard>
+          <Row icon="edit-3" title="Preenchimento automático" subtitle={settings.autofillEnabled ? 'Ativo em outros apps e navegadores' : 'Desativado'} onPress={() => navigation.navigate('Autofill')} />
+          <Row icon="link" title="Extensão de navegador" subtitle={settings.browserBridge ? 'Conexão permitida' : 'Desligada'} onPress={() => navigation.navigate('BrowserExtension')} last />
         </ListCard>
       </Section>
 
       <Section title="Organização">
         <ListCard>
-          <Row icon="folder" title="Pastas e subpastas" onPress={() => navigation.navigate('Folders')} last />
+          <Row icon="layers" title="Perfis" subtitle="Pessoal e profissional, cada um com o seu cofre" onPress={() => navigation.navigate('Profiles')} />
+          <Row icon="folder" title="Pastas e subpastas" onPress={() => navigation.navigate('Folders')} />
+          <Row icon="credit-card" title="Cartões, endereços e identidades" subtitle="Dados para preencher formulários" onPress={() => navigation.navigate('Forms')} />
+          <Row
+            icon="calendar"
+            title="Troca e validade das senhas"
+            subtitle={`Sugerir troca após ${settings.passwordMaxAgeDays || 90} dias • vencidas ${settings.autoInactiveOnExpire !== false ? 'ficam inativas' : 'só destacadas'}`}
+            onPress={() => navigation.navigate('PasswordAgeSettings')}
+            last
+          />
+        </ListCard>
+      </Section>
+
+      <Section title="Sincronização">
+        <ListCard>
+          <Row
+            icon="refresh-cw"
+            title="Sincronização entre aparelhos"
+            subtitle={settings.syncEnabled ? 'Ativa • cifrada de ponta a ponta' : 'Desligada • conecte outro aparelho com segurança'}
+            onPress={() => navigation.navigate('Sync')}
+            last
+          />
+        </ListCard>
+      </Section>
+
+      <Section title="Dados">
+        <ListCard>
+          <Row icon="repeat" title="Importar e exportar" subtitle="CSV/JSON de outros gerenciadores, foto (OCR), exportação cifrada e inventário" onPress={() => navigation.navigate('ImportExport')} />
+          <Row icon="archive" title="Backup" subtitle={settings.autoBackup ? `Automático a cada ${settings.backupIntervalDays} dias, cifrado` : 'Backup automático desativado'} onPress={() => navigation.navigate('Backup')} last />
         </ListCard>
       </Section>
 
@@ -77,7 +113,7 @@ export default function SettingsScreen({ navigation }: any) {
       </Section>
 
       <Button title="Bloquear cofre agora" icon="lock" variant="outline" onPress={() => Vault.lock('manual')} />
-      <Text style={[Type.caption, styles.version]}>Custódia v0.1.0 • zero-knowledge</Text>
+      <Text style={[Type.caption, styles.version]}>Custódia v0.2.0 • zero-knowledge</Text>
     </Screen>
   );
 }

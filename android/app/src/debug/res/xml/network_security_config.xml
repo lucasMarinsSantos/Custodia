@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Variante debug: libera HTTP para o Metro pelo Wi-Fi (Change Bundle Location com IP_DO_PC:8082) e para o
+     servidor de sincronização na rede local. O APK de release usa a configuração de src/main (só HTTPS). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

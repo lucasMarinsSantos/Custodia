@@ -32,6 +32,8 @@ import {
   Sheet,
 } from '../../components/ui';
 import { ServiceIcon, StrengthDot } from '../../components/widgets';
+import { AttentionBanner, AttentionTag, attentionA11y } from '../../components/lifecycle';
+import { AttentionKind, ExpiryService } from '../../services/ExpiryService';
 import { Colors, Radius, Shadow, Touch, Type } from '../../theme';
 import { useApp, useVaultData } from '../../context/AppState';
 import { Repo } from '../../services/Repository';
@@ -42,7 +44,10 @@ import {
 } from '../../services/SearchService';
 import { strengthOf } from '../../services/AnalysisService';
 import { sortCredentials } from '../../services/SortService';
+import { RiskService } from '../../services/RiskService';
 import { ClipboardService } from '../../services/ClipboardService';
+import { PolicyService } from '../../services/PolicyService';
+import { FolderRulesService } from '../../services/FolderRulesService';
 import { IntegrityService } from '../../services/IntegrityService';
 import {
   CategoryLabels,
@@ -61,6 +66,7 @@ const SORT_LABELS: Record<SortMode, string> = {
   recent: 'Recentes',
   usage: 'Mais usadas',
   alpha: 'A–Z',
+  risk: 'Maior risco',
 };
 
 export default function VaultScreen({ navigation }: any) {
@@ -203,17 +209,29 @@ export default function VaultScreen({ navigation }: any) {
     return r;
   };
 
+  // ---: vencidas e senhas para trocar (destaque e filtro) -----
+  const attention = useMemo(() => ExpiryService.statusMap(data.creds, data.folders), [data.creds, data.folders]);
+  const attentionCount = useMemo(() => {
+    let expired = 0;
+    attention.forEach(k => {
+      if (k === 'expired') expired++;
+    });
+    return { expired, old: attention.size - expired };
+  }, [attention]);
+
   // --- Filtragem e ordenação -------------------------------------------------
   const list = useMemo(() => {
     let items = SearchService.search(data.creds, query, filters, data.folders);
     if (folderFilter === 'fav') items = items.filter(c => c.favorite);
+    else if (folderFilter === 'attention') items = items.filter(c => attention.has(c.id));
     else if (folderFilter === 'none') items = items.filter(c => !c.folderId);
     else if (folderFilter !== 'all') {
       const ids = new Set(Repo.descendantIds(data.folders, folderFilter));
       items = items.filter(c => c.folderId && ids.has(c.folderId));
     }
-    return sortCredentials(items, sort);
-  }, [data.creds, data.folders, query, filters, folderFilter, sort]);
+    // Maior risco: a reutilização de senha é avaliada no cofre inteiro, não só nos itens filtrados
+    return sortCredentials(items, sort, Date.now(), sort === 'risk' ? RiskService.context(data.creds) : undefined);
+  }, [data.creds, data.folders, query, filters, folderFilter, sort, attention]);
 
   // Se a pasta selecionada foi excluída, volta para "Todas"
   useEffect(() => {
@@ -251,7 +269,14 @@ export default function VaultScreen({ navigation }: any) {
 
   const copyPassword = async (c: Credential) => {
     try {
-      await ClipboardService.copy(c.password, 'Senha');
+      // Regras da pasta: com reautenticação exigida, a cópia rápida da lista não vale (vai para o detalhe)
+      const policy = PolicyService.forCredential(data.folders, c);
+      if (policy.requireReauth) {
+        toast('Esta pasta exige confirmar sua identidade para copiar a senha.', 'info');
+        open(c);
+        return;
+      }
+      await ClipboardService.copy(c.password, 'Senha', true, FolderRulesService.clipboardSeconds(policy, Vault.settings.clipboardSeconds));
       await Repo.recordUsage(c.id);
     } catch (e: any) {
       toast(e?.message || 'Não foi possível copiar a senha.', 'error');
@@ -283,11 +308,12 @@ export default function VaultScreen({ navigation }: any) {
         responder={makeResponder(item)}
         dragging={dragItem?.id === item.id}
         actions={rowActions}
+        attention={attention.get(item.id)}
       />
     ),
     // makeResponder usa apenas refs estáveis
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dragItem?.id, rowActions],
+    [dragItem?.id, rowActions, attention],
   );
 
   const header = (
@@ -323,6 +349,12 @@ export default function VaultScreen({ navigation }: any) {
             text={`${data.integrity.message} Toque para ver os detalhes.`}
             onPress={() => navigation.navigate('About')}
           />
+        </View>
+      ) : null}
+
+      {folderFilter !== 'attention' ? (
+        <View style={styles.px16}>
+          <AttentionBanner expired={attentionCount.expired} old={attentionCount.old} onPress={() => setFolderFilter('attention')} />
         </View>
       ) : null}
 
@@ -389,6 +421,15 @@ export default function VaultScreen({ navigation }: any) {
           active={folderFilter === 'none'}
           onPress={() => setFolderFilter('none')}
         />
+        {attention.size || folderFilter === 'attention' ? (
+          <Chip
+            label={`Vencidas / Trocar (${attention.size})`}
+            icon="alert-octagon"
+            color={Colors.danger}
+            active={folderFilter === 'attention'}
+            onPress={() => setFolderFilter('attention')}
+          />
+        ) : null}
       </ChipRow>
       <ChipRow style={styles.pb12}>
         {(Object.keys(SORT_LABELS) as SortMode[]).map(m => (
@@ -529,7 +570,7 @@ export default function VaultScreen({ navigation }: any) {
   );
 }
 
-const SPECIAL_FILTERS: string[] = ['all', 'fav', 'none'];
+const SPECIAL_FILTERS: string[] = ['all', 'fav', 'none', 'attention'];
 
 function emptyState(loading: boolean, total: number) {
   if (loading && total === 0) return undefined;
@@ -708,11 +749,13 @@ const CredentialRow = memo(function CredentialRowView({
   responder,
   dragging,
   actions,
+  attention,
 }: {
   item: Credential;
   responder: ReturnType<typeof PanResponder.create>;
   dragging: boolean;
   actions: RowActions;
+  attention?: AttentionKind;
 }) {
   const s = strengthOf(item.password);
   const a11y = [
@@ -720,6 +763,7 @@ const CredentialRow = memo(function CredentialRowView({
     item.username || item.url,
     item.favorite ? 'favorita' : null,
     `senha ${StrengthLabels[s].toLowerCase()}`,
+    attentionA11y(attention),
   ]
     .filter(Boolean)
     .join(', ');
@@ -727,7 +771,7 @@ const CredentialRow = memo(function CredentialRowView({
     <View {...responder.panHandlers} style={dragging ? styles.dragging : null}>
       <TouchableOpacity
         activeOpacity={0.75}
-        style={styles.item}
+        style={[styles.item, attention === 'expired' && styles.itemExpired]}
         onPress={() => actions.open(item)}
         delayLongPress={350}
         onPressOut={actions.pressOut}
@@ -768,6 +812,11 @@ const CredentialRow = memo(function CredentialRowView({
           <Text style={[Type.caption, styles.mt2]} numberOfLines={1}>
             {CategoryLabels[item.category]}
           </Text>
+          {attention ? (
+            <View style={styles.mt4}>
+              <AttentionTag kind={attention} />
+            </View>
+          ) : null}
         </View>
         <StrengthDot strength={s} />
         <TouchableOpacity
@@ -789,6 +838,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   listContent: { paddingBottom: 110 },
   dragging: { opacity: 0.35 },
+  // "a credencial é marcada em vermelho na lista"
+  itemExpired: { borderLeftWidth: 4, borderLeftColor: Colors.danger },
   itemBody: { flex: 1, marginLeft: 12 },
   itemTitleRow: { flexDirection: 'row', alignItems: 'center' },
   shrink: { flexShrink: 1 },

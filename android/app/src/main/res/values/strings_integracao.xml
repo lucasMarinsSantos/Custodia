@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="integracao_accessibility_label">Custódia — Preenchimento</string>
+    <string name="integracao_accessibility_description">O Custódia lê os campos da tela em foco e o endereço da barra dos navegadores (Chrome, Firefox, Edge, Samsung Internet e Brave) para mostrar o balão \"Preencher com Custódia\". Nada é enviado a servidores. As senhas só saem do cofre depois que você desbloqueia o app e escolhe a credencial, e o endereço é verificado contra sites falsos antes de preencher.</string>
+    <!-- Etiqueta que acompanha o dedo ao arrastar o usuário/senha para outro app -->
+    <string name="integracao_drag_label">🔑 %1$s</string>
+</resources>

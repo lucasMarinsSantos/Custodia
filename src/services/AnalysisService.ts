@@ -4,14 +4,22 @@
 import { Credential, PasswordStrength } from '../types/models';
 import { PasswordService, StrengthLevel } from './PasswordService';
 import { daysBetween, registrableDomain } from '../utils';
+import { DictionaryService } from './DictionaryService';
 
-const strengthCache = new Map<string, { strength: PasswordStrength; score: number }>();
+/** Senha encontrada no dicionário conta no máximo como fraca, por mais longa que pareça. */
+export const DICTIONARY_MAX_SCORE = 40;
+
+const strengthCache = new Map<string, { strength: PasswordStrength; score: number; dictionary?: string }>();
 
 export function analyzeCached(pw: string) {
   let v = strengthCache.get(pw);
   if (!v) {
-    const a = PasswordService.analyze(pw);
-    v = { strength: a.strength, score: a.score };
+    // A lista das 10 mil senhas mais comuns volta a valer para as credenciais salvas (não só para a senha mestra)
+    const a = PasswordService.analyze(pw, { checkCommon: true });
+    const dict = DictionaryService.check(pw);
+    v = dict.found
+      ? { strength: a.score > DICTIONARY_MAX_SCORE ? 'weak' : a.strength, score: Math.min(a.score, DICTIONARY_MAX_SCORE), dictionary: dict.reason }
+      : { strength: a.strength, score: a.score };
     if (strengthCache.size > 5000) strengthCache.clear();
     strengthCache.set(pw, v);
   }
@@ -86,7 +94,7 @@ export const AnalysisService = {
           id: `weak:${c.id}`,
           credentialId: c.id,
           title: `Troque a senha de ${c.title}`,
-          message: `Senha Fraca: ${PasswordService.analyze(c.password).feedback.slice(0, 2).join('; ') || 'use o gerador.'}`,
+          message: `Senha Fraca: ${analyzeCached(c.password).dictionary || PasswordService.analyze(c.password).feedback.slice(0, 2).join('; ') || 'use o gerador.'}`,
           severity: 'warning',
         });
       }

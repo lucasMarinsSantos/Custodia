@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Banner, Button, Icon } from '../../components/ui';
+import { Banner, Button, Chip, Icon, Input } from '../../components/ui';
 import { MasterPasswordInput } from '../../components/MasterPasswordInput';
 import { Colors, Type } from '../../theme';
 import { Vault } from '../../services/VaultService';
@@ -10,6 +10,67 @@ import { IntegrityService } from '../../services/IntegrityService';
 import { Security } from '../../native';
 import { useApp } from '../../context/AppState';
 import { AppSettings, Profile } from '../../types/models';
+
+/** Estado do login de um perfil: ajustes, biometria e integridade do arquivo. */
+async function readProfileState(p: Profile) {
+  const settings = await Vault.loadSettings(p.id);
+  const hasBio = settings.biometricEnabled && (await Security.hasBiometricKey(`bio_${p.id}`).catch(() => false));
+  const integrity = await IntegrityService.checkFile(p.id);
+  const bioLocked = (await Vault.biometricLockedUntil(p.id)) > 0;
+  return { settings, hasBio: !!hasBio, integrity, autoBio: !!hasBio && !bioLocked };
+}
+
+/** A etapa da senha fica montada (o campo não perde o estado) e só some durante a etapa do código. */
+const STEP_STYLE = { password: undefined, code: { display: 'none' as const } };
+
+/** Com o 2FA ativo, a senha (ou a biometria) leva à etapa do código. */
+const stepAfter = (r: 'unlocked' | 'second_factor') => (r === 'second_factor' ? 'code' : 'password');
+
+/** Seletor de perfil, só quando há mais de um. */
+function ProfilePicker({ profiles, selected, onChoose }: { profiles: Profile[]; selected?: string; onChoose: (p: Profile) => void }) {
+  if (profiles.length < 2) return null;
+  return (
+    <View style={styles.profiles} accessibilityLabel="Perfis">
+      {profiles.map(p => (
+        <Chip key={p.id} label={`Perfil ${p.name}`} icon={p.type === 'professional' ? 'briefcase' : 'home'} color={p.color} active={p.id === selected} onPress={() => onChoose(p)} />
+      ))}
+    </View>
+  );
+}
+
+/** Segunda etapa: código do app autenticador ou código de reserva, depois da senha mestra. */
+function SecondFactorStep({ visible, onBack, onLocked }: { visible: boolean; onBack: () => void; onLocked: () => void }) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const verify = async () => {
+    if (busy || !code.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await Vault.verifySecondFactor(code);
+    } catch (e: any) {
+      setError(e?.message || 'Código de verificação inválido.');
+      setCode('');
+      // Bloqueio temporário ou etapa expirada: a senha volta a ser pedida
+      if (!Vault.pendingSecondFactorProfile) onLocked();
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!visible) return null;
+  return (
+    <View>
+      <Banner tone="info" icon="smartphone" title="Verificação em duas etapas" text="Digite o código de 6 dígitos do seu app autenticador (ou um código de reserva)." />
+      <Input label="Código de verificação" icon="hash" value={code} onChangeText={t => setCode(t.slice(0, 16))} keyboardType="default" autoCapitalize="characters" mono autoFocus onSubmitEditing={verify} placeholder="000000" />
+      {error ? <Banner tone="danger" icon="alert-circle" text={error} /> : null}
+      <Button title="Verificar e entrar" icon="unlock" onPress={verify} loading={busy} disabled={!code.trim()} />
+      <TouchableOpacity hitSlop={10} accessibilityRole="button" onPress={onBack} style={styles.back}>
+        <Text style={styles.link}>Voltar para a senha mestra</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function LoginScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -25,6 +86,8 @@ export default function LoginScreen({ navigation }: any) {
   const [bioLocked, setBioLocked] = useState(false);
   const [integrity, setIntegrity] = useState<'ok' | 'mismatch' | 'unknown'>('unknown');
   const [lockoutSecs, setLockoutSecs] = useState(0);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [step, setStep] = useState<'password' | 'code'>('password');
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -53,7 +116,7 @@ export default function LoginScreen({ navigation }: any) {
       setError(null);
       try {
         const dek = await Vault.verifyBiometric(pid);
-        await Vault.completeUnlock(pid, dek, 'biometric');
+        setStep(stepAfter(await Vault.completeUnlock(pid, dek, 'biometric')));
       } catch (e: any) {
         setError(e.message);
         await refreshLockout(pid);
@@ -62,22 +125,44 @@ export default function LoginScreen({ navigation }: any) {
     [profile, refreshLockout],
   );
 
+  /** Carrega o perfil escolhido (: cada perfil tem biometria, ajustes e bloqueio próprios). */
+  const loadProfile = useCallback(
+    async (p: Profile, autoBio: boolean) => {
+      setProfile(p);
+      setStep('password');
+      setHint(null);
+      setError(null);
+      const st = await readProfileState(p);
+      setSettings(st.settings);
+      setBioReady(st.hasBio);
+      setIntegrity(st.integrity);
+      await refreshLockout(p.id);
+      const auto = autoBio && st.autoBio;
+      if (auto) setTimeout(() => unlockBiometric(p.id), 400);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [refreshLockout],
+  );
+
   useEffect(() => {
     (async () => {
       const p = await Vault.getProfile();
       if (!p) return;
-      setProfile(p);
-      const s = await Vault.loadSettings(p.id);
-      setSettings(s);
-      const hasBio = s.biometricEnabled && (await Security.hasBiometricKey(`bio_${p.id}`).catch(() => false));
-      setBioReady(!!hasBio);
-      setIntegrity(await IntegrityService.checkFile(p.id));
-      await refreshLockout(p.id);
-      const locked = (await Vault.biometricLockedUntil(p.id)) > 0;
-      if (hasBio && !locked) setTimeout(() => unlockBiometric(p.id), 400);
-    })();
+      setProfiles(await Vault.listProfiles());
+      await loadProfile(p, true);
+    })().catch(e => setError(e?.message || 'Não foi possível carregar o perfil.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const chooseProfile = async (p: Profile) => {
+    try {
+      await Vault.selectProfile(p.id);
+      setPassword('');
+      await loadProfile(p, false);
+    } catch (e: any) {
+      setError(e?.message || 'Não foi possível trocar de perfil.');
+    }
+  };
 
   useEffect(() => {
     if (lockoutSecs <= 0) return;
@@ -94,8 +179,10 @@ export default function LoginScreen({ navigation }: any) {
     try {
       const dek = await Vault.verifyPassword(profile.id, password);
       setPassword('');
-      await Vault.completeUnlock(profile.id, dek, 'password');
+      setStep(stepAfter(await Vault.completeUnlock(profile.id, dek, 'password')));
     } catch (e: any) {
+      // Senha errada: o campo é limpo (nada da tentativa fica na tela e a próxima digitação começa do zero)
+      setPassword('');
       setError(e.message);
       await refreshLockout(profile.id);
     } finally {
@@ -138,10 +225,26 @@ export default function LoginScreen({ navigation }: any) {
         {canBio ? 'Toque no sensor ou digite sua senha mestra' : bioLocked ? 'Biometria desativada temporariamente, use a senha mestra' : 'Digite sua senha mestra'}
       </Text>
 
-      <MasterPasswordInput value={password} onChange={setPassword} secureKeyboard={!!settings?.secureKeyboard} onSubmit={unlockPassword} />
+      <ProfilePicker profiles={profiles} selected={profile?.id} onChoose={chooseProfile} />
+
+      <SecondFactorStep
+        visible={step === 'code'}
+        onBack={() => {
+          Vault.cancelSecondFactor();
+          setStep('password');
+        }}
+        onLocked={() => {
+          setStep('password');
+          refreshLockout(profile!.id);
+        }}
+      />
+      <View style={STEP_STYLE[step]}>
+          <MasterPasswordInput value={password} onChange={setPassword} secureKeyboard={!!settings?.secureKeyboard} onSubmit={unlockPassword} />
       {error ? <Banner tone="danger" icon="alert-circle" text={error} /> : null}
       {lockoutSecs > 0 ? <Banner tone="warning" icon="clock" text={`Bloqueio temporário após várias falhas. Tente novamente em ${lockoutSecs}s.`} /> : null}
-      <Button title="Desbloquear" icon="unlock" onPress={unlockPassword} loading={busy} disabled={!password || lockoutSecs > 0} />
+          <Button title="Desbloquear" icon="unlock" onPress={unlockPassword} loading={busy} disabled={!password || lockoutSecs > 0} />
+
+      </View>
 
       <View style={styles.links}>
         <TouchableOpacity hitSlop={10} accessibilityRole="button" onPress={async () => profile && setHint((await Vault.getHint(profile.id)) || 'Nenhuma dica cadastrada.')}>
@@ -175,4 +278,6 @@ const styles = StyleSheet.create({
   links: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
   link: { color: Colors.primary, fontWeight: '700', fontSize: 14 },
   hint: { marginTop: 10, textAlign: 'center' },
+  profiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 16 },
+  back: { marginTop: 14, alignItems: 'center' },
 });
