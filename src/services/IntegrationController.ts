@@ -10,6 +10,7 @@ import { AutofillService } from './AutofillService';
 import { BrowserBridgeService } from './BrowserBridgeService';
 import { Vault } from './VaultService';
 import { bus, Events, toast } from './events';
+import { afterIntegrityCheck } from './unlockGate';
 
 let initialized = false;
 let indexTimer: ReturnType<typeof setTimeout> | null = null;
@@ -78,6 +79,8 @@ export const IntegrationController = {
   async onUnlocked() {
     await AutofillService.syncIndex().catch(warn('índice'));
     await syncBridge();
+    // Preencher um pedido pendente e aplicar trocas de senha gravam no banco: espera a verificação de integridade
+    await afterIntegrityCheck();
     await AutofillService.checkPendingRequest().catch(warn(REQUEST));
     await AutofillService.processPasswordChanges().catch(warn(PW_CHANGE));
   },

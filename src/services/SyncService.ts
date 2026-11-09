@@ -20,6 +20,7 @@ import { vaultDb, WriteEvent } from '../db/Database';
 import { Security } from '../native';
 import { AlertService } from './AlertService';
 import { bus, Events } from './events';
+import { afterIntegrityCheck } from './unlockGate';
 import { Vault } from './VaultService';
 import { HybridClock } from './sync/crdt';
 import { SyncEngine, SyncResult } from './sync/engine';
@@ -238,6 +239,9 @@ class SyncServiceImpl {
     if (!acc) return;
     const key = await this.loadKey(profileId);
     if (!key) return;
+    // A sincronização grava no banco: espera a verificação de integridade do desbloqueio terminar,
+    // senão o conteúdo muda no meio dela e o app acusa uma adulteração que não houve
+    await afterIntegrityCheck();
     // Bloqueou (ou trocou de perfil) enquanto a chave era lida: a chave não pode ficar viva num cofre fechado
     if (!Vault.isUnlocked || Vault.currentProfile?.id !== profileId) {
       wipe(key);

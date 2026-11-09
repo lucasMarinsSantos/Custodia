@@ -384,9 +384,22 @@ describe('Sincronização: conta, pareamento e aparelhos', () => {
     await expect(SyncService.syncNow()).rejects.toThrow('Desbloqueie o cofre para sincronizar.');
     const p = (await Vault.getProfile())!;
     await Vault.completeUnlock(p.id, await Vault.verifyPassword(p.id, MASTER), 'password');
+    bus.emit(Events.INTEGRITY_CHECKED);
     await new Promise(r => setTimeout(r, 200));
     expect((await SyncService.status()).connected).toBe(true);
     await SyncService.syncNow();
+  });
+
+  it('no desbloqueio, a sincronização só grava depois da verificação de integridade (sem falso alerta de adulteração)', async () => {
+    await Vault.lock();
+    const before = backend.requests.length;
+    const p = (await Vault.getProfile())!;
+    await Vault.completeUnlock(p.id, await Vault.verifyPassword(p.id, MASTER), 'password');
+    await new Promise(r => setTimeout(r, 300));
+    expect(backend.requests.length).toBe(before);
+    bus.emit(Events.INTEGRITY_CHECKED);
+    await new Promise(r => setTimeout(r, 300));
+    expect(backend.requests.length).toBeGreaterThan(before);
   });
 
   it('aparelho removido por outro: a sincronização desliga aqui, avisa nos alertas e os dados locais ficam', async () => {

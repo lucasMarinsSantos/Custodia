@@ -2,6 +2,7 @@
 // formulários, arrastar e sites associados. O serviço de acessibilidade (Kotlin) é simulado pelo fallback em
 // memória de `src/native/integration.ts`; a árvore de nós da tela é simulada com objetos `ScreenNode`.
 import { Vault } from '../services/VaultService';
+import { bus, Events } from '../services/events';
 import { Repo, newCredential, newFolder } from '../services/Repository';
 import {
   AUTOFILL_REQUEST_MAX_AGE_MS,
@@ -38,6 +39,8 @@ function request(partial: Partial<AutofillRequest>): AutofillRequest {
 async function unlock() {
   const p = (await Vault.getProfile())!;
   await Vault.completeUnlock(p.id, await Vault.verifyPassword(p.id, MASTER), 'password');
+  // Sem o AppController, avisa que a verificação de integridade do desbloqueio terminou
+  bus.emit(Events.INTEGRITY_CHECKED);
 }
 
 // Campos simulados (AccessibilityNodeInfo reduzido)
